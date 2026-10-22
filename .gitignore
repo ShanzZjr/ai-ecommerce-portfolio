@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# 内部面试准备材料（不公开）
+面试讲稿与问答.md
+
+# env files that may contain secrets
+.env
+*.env

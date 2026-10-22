@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>短视频 / 直播脚本批量生成</title>
+<style>
+  body { font-family: "Microsoft YaHei", sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #26282c; }
+  h1 { font-size: 20px; }
+  h3 { font-size: 14px; margin: 14px 0 8px; }
+  .panel { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: 14px; margin-bottom: 14px; font-size: 13px; }
+  label { display: block; margin: 8px 0 4px; color: #444; }
+  input { width: 100%; box-sizing: border-box; border: 1px solid #cfd6de; border-radius: 8px; padding: 8px; font-size: 13px; }
+  button { background: #185fa5; color: #fff; border: 0; border-radius: 8px; padding: 8px 18px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+  button:disabled { background: #9fb6cd; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  th, td { border: 1px solid #e3e6eb; padding: 6px 8px; text-align: left; font-size: 12px; }
+  th { background: #f2f6fb; }
+  pre { white-space: pre-wrap; background: #f7f8fa; border-radius: 8px; padding: 12px; line-height: 1.7; }
+  .mode { color: #6a707a; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>项目六 · 短视频 / 直播脚本批量生成</h1>
+<div class="panel">
+  <label>商品 / 品类</label>
+  <input id="product" value="托特包">
+  <label>核心卖点（逗号分隔）</label>
+  <input id="points" value="大容量,百搭,耐磨">
+  <label>直播价（元）</label>
+  <input id="price" value="129">
+  <label>目标人群</label>
+  <input id="audience" value="20-35 岁通勤女生">
+  <button id="go">生成脚本</button>
+  <div class="mode">演示模式：结构模板生成（钩子-共鸣-卖点-行动 / 开场-过款-逼单）。</div>
+</div>
+<div class="panel" id="out" style="display:none"></div>
+<script>
+document.getElementById("go").onclick = async () => {
+  const btn = document.getElementById("go");
+  btn.disabled = true; btn.textContent = "生成中...";
+  try {
+    const r = await (await fetch("/generate", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        product: document.getElementById("product").value,
+        points: document.getElementById("points").value,
+        price: document.getElementById("price").value,
+        audience: document.getElementById("audience").value,
+      })
+    })).json();
+    render(r);
+  } finally { btn.disabled = false; btn.textContent = "生成脚本"; }
+};
+function render(r) {
+  const out = document.getElementById("out");
+  out.style.display = "";
+  let html = r.videos.map(v => `
+    <h3>${v.name}</h3>
+    <table><tr><th>时间</th><th>段落</th><th>台词</th><th>画面建议</th></tr>
+    ${v.beats.map(b => `<tr><td>${b.time}</td><td>${b.type}</td><td>${b.line}</td><td>${b.shot}</td></tr>`).join("")}
+    </table>`).join("");
+  html += `<h3>口播稿（约 40 秒）</h3><pre>${r.voiceover}</pre>`;
+  html += "<h3>直播话术</h3><pre>" +
+    Object.entries(r.live).map(([k, v]) => `【${k}】\n${v}`).join("\n\n") + "</pre>";
+  html += `<div class='mode'>${r.mode}</div>`;
+  out.innerHTML = html;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>竞品/店铺评价洞察 Demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f6f8; color: #1f2329; }
+  header { background: #534AB7; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 500; }
+  .wrap { max-width: 820px; margin: 16px auto; padding: 0 12px; }
+  .card { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .cfgbar { font-size: 13px; }
+  .cfgbar input { width: 200px; padding: 6px; border: 1px solid #d0d4da; border-radius: 6px; }
+  textarea { width: 100%; min-height: 120px; padding: 8px; border: 1px solid #d0d4da; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; color: #fff; background: #534AB7; }
+  button.ghost { background: #fff; color: #534AB7; border: 1px solid #534AB7; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .stat { display: inline-block; margin-right: 16px; font-size: 14px; }
+  .stat b { font-size: 20px; }
+  .bar { height: 22px; background: #E6F1FB; border-radius: 5px; margin: 4px 0; position: relative; }
+  .bar > span { position: absolute; left: 8px; top: 2px; font-size: 12px; color: #185FA5; }
+  .bar > i { display: block; height: 100%; background: #7F77DD; border-radius: 5px; }
+  .neg { border-left: 3px solid #E24B4A; padding: 6px 10px; margin: 6px 0; background: #fafafa; font-size: 13px; }
+  .neg .tag { display: inline-block; font-size: 11px; background: #fcebeb; color: #a32d2d; border-radius: 4px; padding: 1px 6px; margin-right: 4px; }
+  .imp { border: 1px solid #e3e6eb; border-radius: 8px; padding: 10px; margin: 6px 0; }
+  .imp h4 { margin: 0 0 4px; font-size: 14px; color: #534AB7; }
+  .imp li { font-size: 13px; margin: 2px 0; }
+  .summary { background: #f3f1fe; border-radius: 8px; padding: 10px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .hint { font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<header><h1>竞品 / 店铺评价洞察 · Demo</h1><span style="font-size:12px">个人练手项目</span></header>
+<div class="wrap">
+  <div class="card cfgbar">
+    <b>配置（可选）</b>：模型
+    <select id="provider"><option value="deepseek">DeepSeek</option><option value="qwen">通义千问</option><option value="openai">OpenAI</option></select>
+    Key <input id="apikey" type="password" placeholder="不填则演示模式">
+    <button class="ghost" onclick="saveCfg()">保存</button>
+    <span id="cfgstate" class="hint"></span>
+  </div>
+
+  <div class="card">
+    <label style="font-size:13px">粘贴评价（每条一行，留空则用示例数据）</label>
+    <textarea id="reviews" placeholder="每行一条顾客评价…"></textarea>
+    <div class="row">
+      <button onclick="loadSample()">载入示例数据</button>
+      <button onclick="run()">开始分析</button>
+    </div>
+    <div class="hint">示例数据为公开合成的包包含评价，不含真实隐私。</div>
+  </div>
+
+  <div class="card" id="out" style="display:none">
+    <div id="stats"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px">差评归因分布</h3>
+    <div id="attrs"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px">负面评价明细</h3>
+    <div id="negs"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px">给运营的改进建议</h3>
+    <div id="imp"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px">总结</h3>
+    <div class="summary" id="summary"></div>
+  </div>
+</div>
+<script>
+function saveCfg(){
+  fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({provider:document.getElementById('provider').value,api_key:document.getElementById('apikey').value})})
+   .then(r=>r.json()).then(d=>{document.getElementById('cfgstate').innerText=d.has_key?'已启用大模型':'演示模式';});
+}
+async function loadSample(){
+  const r=await fetch('/sample'); const d=await r.json();
+  document.getElementById('reviews').value=d.reviews.join('\n');
+}
+async function run(){
+  const txt=document.getElementById('reviews').value.trim();
+  const reviews=txt? txt.split('\n').map(s=>s.trim()).filter(Boolean): [];
+  const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviews})});
+  const d=await r.json();
+  document.getElementById('out').style.display='block';
+  const s=d.sentiment;
+  document.getElementById('stats').innerHTML=
+    `<span class="stat">总评价 <b>${d.total}</b></span>`+
+    `<span class="stat">正面 <b style="color:#0F6E56">${s['正面']||0}</b></span>`+
+    `<span class="stat">中性 <b>${s['中性']||0}</b></span>`+
+    `<span class="stat">负面 <b style="color:#A32D2D">${s['负面']||0}</b></span>`;
+  const a=d.attribute; const max=Math.max(1,...Object.values(a));
+  document.getElementById('attrs').innerHTML=Object.entries(a).sort((x,y)=>y[1]-x[1]).map(([k,v])=>
+    `<div class="bar"><i style="width:${v/max*100}%"></i><span>${k} ${v}</span></div>`).join('');
+  document.getElementById('negs').innerHTML=d.negative.map(n=>
+    `<div class="neg">${n.cats.map(c=>`<span class="tag">${c}</span>`).join('')}${n.text}</div>`).join('');
+  document.getElementById('imp').innerHTML=d.improve.map(i=>
+    `<div class="imp"><h4>${i.cat}（命中 ${i.count} 条）</h4><ul>${i.tips.map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('');
+  document.getElementById('summary').innerText=d.summary;
+}
+</script>
+</body>
+</html>

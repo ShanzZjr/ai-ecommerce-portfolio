@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商品文案生成 + 违禁词检测 Demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f6f8; color: #1f2329; }
+  header { background: #0F6E56; color: #fff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 500; }
+  .wrap { max-width: 760px; margin: 16px auto; padding: 0 12px; }
+  .card { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  label { font-size: 13px; color: #444; display: block; margin: 8px 0 4px; }
+  input, textarea, select { width: 100%; padding: 8px; border: 1px solid #d0d4da; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  button.gen { margin-top: 10px; padding: 10px 18px; border: none; background: #0F6E56; color: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .out { white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+  .out mark { background: #fde2e2; color: #a32d2d; padding: 0 2px; border-radius: 3px; }
+  .hits { font-size: 13px; }
+  .hits .h { background: #fcebeb; border: 1px solid #f0c2c2; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+  .ok { color: #0F6E56; font-size: 13px; }
+  .cfgbar { font-size: 13px; }
+  .cfgbar input { width: 220px; display: inline-block; }
+</style>
+</head>
+<body>
+<header><h1>商品文案生成 + 违禁词检测 · Demo</h1><span style="font-size:12px">个人练手项目</span></header>
+<div class="wrap">
+  <div class="card cfgbar">
+    <b>配置（可选）</b>：模型
+    <select id="provider">
+      <option value="deepseek">DeepSeek</option>
+      <option value="qwen">通义千问</option>
+      <option value="openai">OpenAI</option>
+    </select>
+    Key <input id="apikey" type="password" placeholder="不填则演示模式">
+    <button onclick="saveCfg()" style="padding:5px 12px;border:1px solid #0F6E56;background:#0F6E56;color:#fff;border-radius:6px;cursor:pointer">保存</button>
+    <span id="cfgstate" style="font-size:12px;color:#888"></span>
+  </div>
+
+  <div class="card">
+    <label>品类</label><input id="category" value="通勤托特包">
+    <div class="row">
+      <div><label>材质</label><input id="material" value="头层牛皮"></div>
+      <div><label>颜色（逗号分隔）</label><input id="colors" value="黑,奶茶,雾霾蓝"></div>
+    </div>
+    <label>尺寸</label><input id="size" value="长28×高20×厚12cm">
+    <label>卖点（逗号分隔）</label>
+    <textarea id="points" rows="3">大容量,可装13寸电脑,可调节肩带,多隔层,轻盈通勤</textarea>
+    <button class="gen" onclick="gen()">生成文案</button>
+  </div>
+
+  <div class="card">
+    <div id="result" class="out" style="color:#888">生成结果会显示在这里，命中极限词会被标红。</div>
+    <div id="hits" class="hits"></div>
+  </div>
+</div>
+<script>
+function saveCfg(){
+  fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({provider:document.getElementById('provider').value,api_key:document.getElementById('apikey').value})})
+   .then(r=>r.json()).then(d=>{document.getElementById('cfgstate').innerText=d.has_key?'已启用大模型':'演示模式';});
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function render(text){
+  // 把 <<词>> 转成红色 mark
+  let h=esc(text).replace(/&lt;&lt;/g,'<<').replace(/&gt;&gt;/g,'>>');
+  h=h.replace(/<<([^>]+)>>/g,'<mark>$1</mark>');
+  document.getElementById('result').innerHTML=h;
+}
+async function gen(){
+  const body={
+    category:document.getElementById('category').value,
+    material:document.getElementById('material').value,
+    colors:document.getElementById('colors').value,
+    size:document.getElementById('size').value,
+    points:document.getElementById('points').value
+  };
+  const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  render(d.highlighted);
+  const hd=document.getElementById('hits');
+  if(d.demo) hd.innerHTML='<div class="ok">演示模式（未填 key）：返回模板化示例文案。</div>';
+  if(d.hits&&d.hits.length){
+    hd.innerHTML='<b style="color:#a32d2d">⚠ 命中违禁词 '+d.hits.length+' 处：</b>'+d.hits.map(x=>
+      `<div class="h">「${x.word}」×${x.count} — ${x.reason}</div>`).join('');
+  } else if(!d.demo){
+    hd.innerHTML='<div class="ok">✓ 未命中已知违禁词</div>';
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>多平台标题搬家 + SEO 优化</title>
+<style>
+  body { font-family: "Microsoft YaHei", sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #26282c; }
+  h1 { font-size: 20px; }
+  .panel { background: #fff; border: 1px solid #e3e6eb; border-radius: 10px; padding: 14px; margin-bottom: 14px; font-size: 13px; }
+  label { display: block; margin: 8px 0 4px; color: #444; }
+  input { width: 100%; box-sizing: border-box; border: 1px solid #cfd6de; border-radius: 8px; padding: 8px; font-size: 13px; }
+  button { background: #185fa5; color: #fff; border: 0; border-radius: 8px; padding: 8px 18px; cursor: pointer; font-size: 14px; margin-top: 10px; }
+  button:disabled { background: #9fb6cd; }
+  .plat { border: 1px solid #e3e6eb; border-radius: 10px; padding: 12px; margin: 10px 0; }
+  .plat h3 { margin: 0 0 6px; font-size: 14px; }
+  .title { font-size: 15px; font-weight: 500; background: #f2f6fb; border-radius: 8px; padding: 10px; }
+  .meta { color: #6a707a; font-size: 12px; margin-top: 6px; }
+  .ban { color: #a32d2d; font-weight: 500; }
+  .hl { background: #f7c1c1; border-radius: 3px; padding: 0 2px; }
+  .mode { color: #6a707a; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>项目五 · 多平台标题搬家 + SEO 优化</h1>
+<div class="panel">
+  <label>原标题（或商品核心词）</label>
+  <input id="title" placeholder="例如：头层牛皮托特包 大容量通勤">
+  <label>类目</label>
+  <input id="category" value="托特包">
+  <label>核心卖点（逗号分隔，最多取2个）</label>
+  <input id="points" value="大容量,百搭,耐磨">
+  <button id="go">生成四平台标题</button>
+  <div class="mode">演示模式：规则模板生成，自动检查各平台字数上限与违禁词。</div>
+</div>
+<div class="panel" id="out" style="display:none"></div>
+<script>
+function hl(text, banned) {
+  let html = text;
+  banned.forEach(b => { html = html.split(b.word).join("<span class='hl'>" + b.word + "</span>"); });
+  return html;
+}
+document.getElementById("go").onclick = async () => {
+  const btn = document.getElementById("go");
+  btn.disabled = true; btn.textContent = "生成中...";
+  try {
+    const r = await (await fetch("/adapt", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        title: document.getElementById("title").value,
+        category: document.getElementById("category").value,
+        points: document.getElementById("points").value,
+      })
+    })).json();
+    if (r.error) { alert(r.error); return; }
+    render(r);
+  } finally { btn.disabled = false; btn.textContent = "生成四平台标题"; }
+};
+function render(r) {
+  const out = document.getElementById("out");
+  out.style.display = "";
+  out.innerHTML = r.results.map(p => `
+    <div class="plat">
+      <h3>${p.platform} <span class="meta">（${p.length}/${p.max} 字）</span></h3>
+      <div class="title">${hl(p.title, p.banned)}</div>
+      <div class="meta">风格：${p.style}</div>
+      ${p.banned.length ? `<div class="meta ban">违禁词命中：${p.banned.map(b => b.word + "×" + b.count).join("、")}</div>` : "<div class='meta'>违禁词检测：通过</div>"}
+    </div>`).join("") + "<div class='mode'>" + r.mode + "</div>";
+}
+</script>
+</body>
+</html>
