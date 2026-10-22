@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目一 · 电商智能客服</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目一 · 电商智能客服</h1></header>
+  <p class="sub">知识库检索 + 转人工规则（演示模式，规则生成；接入大模型可升级为语义问答）</p>
+  <div class="chat" id="chat"></div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <input type="text" id="q" placeholder="输入买家问题，如：能装下电脑吗 / 我要退款" style="flex:1">
+    <button onclick="send()">发送</button>
+  </div>
+  <div style="margin-top:8px" id="quick"></div>
+  <p class="note">转人工红线：钱（退款/赔付）、订单修改、承诺类（发货时间/赠品）、情绪投诉、定制需求 → 一律转人工。</p>
+</div>
+<script>
+const KB = [
+  {q:"能装下手机吗 尺寸多大 容量", a:"这款尺寸为长28×高20×厚12cm，可平放6.7寸以内手机；能装折叠雨伞；通勤够用。"},
+  {q:"肩带能调节吗 自重多少 重不重", a:"肩带可调节，范围45–55cm；空包自重约0.6kg，单肩背着不压肩。"},
+  {q:"能放笔记本电脑 电脑包", a:"支持放13寸笔记本（隔层有绒布保护）；放不下更大尺寸，主打轻便通勤。"},
+  {q:"是真皮吗 什么皮 材质 头层牛皮 pu 帆布", a:"主体采用头层牛皮，手感柔软耐磨；五金为合金电镀，不易褪色。"},
+  {q:"内衬 拉链 隔层 分层", a:"内衬为绒布，有2个主仓+1个拉链暗袋+1个手机位；拉链顺滑。"},
+  {q:"会不会掉皮 开裂 质量", a:"正常使用不易掉皮；建议避免暴晒和沾水，详见保养须知。"},
+  {q:"颜色和图片一样吗 色差 实物色", a:"尽量还原实物，不同屏幕会有轻微色差，以实物为准；奶茶色在自然光下偏暖。"},
+  {q:"有几种颜色 哪个百搭 黑色 奶茶 蓝色", a:"现有黑/奶茶/雾霾蓝三色；通勤推荐黑色或奶茶，耐脏百搭。"},
+  {q:"什么时候发货 几天发 发货时间", a:"现货当天16:00前下单当日发，16:00后次日发，发中通/圆通。"},
+  {q:"包邮吗 邮费 偏远 新疆 西藏 内蒙古", a:"大陆地区满99包邮；新疆/西藏/内蒙古需补10元运费，下单前可咨询。"},
+  {q:"能退换吗 七天无理由 退货", a:"支持7天无理由退换，前提吊牌完好、无使用痕迹、不影响二次销售。"},
+  {q:"收到有瑕疵 破损 坏了怎么办", a:"签收后48小时内拍照联系客服，核实后补发配件/换货/退款，运费我们承担。"},
+  {q:"能送礼盒包装 礼盒 贺卡 礼物", a:"默认普通防尘袋；如需礼盒+贺卡请备注或联系客服，不额外收费。"},
+  {q:"能刻字 定制颜色 改尺寸 定制", a:"目前不支持定制，后续上新会通知您。"}
+];
+const HANDOFF = [
+  {k:["退款","退钱","赔付","补偿","投诉","举报","差评","工商","12315"], r:"涉及退款/投诉，为保障您的权益，正在为您转接人工客服，请稍候。"},
+  {k:["改地址","改订单","催单","拦截","取消订单"], r:"订单修改类操作需要人工核实，正在转接人工客服。"},
+  {k:["保证","一定","承诺","确定明天","必须"], r:"该问题涉及承诺类表述，为避免误解，转人工为您确认。"},
+  {k:["骂","骗子","生气","恶心","无语"], r:"非常理解您的心情，已为您转接人工客服优先处理。"},
+  {k:["定制","刻字绣字","改尺寸"], r:"定制需求需人工评估可行性，正在转接人工客服。"}
+];
+function hitScore(kb, query){
+  let s = 0;
+  kb.q.split(/\s+/).forEach(w => { if (query.includes(w)) s += 2; });
+  kb.a.split(/[；;，,。]/).forEach(w => { if (w.length>1 && query.includes(w)) s += 1; });
+  return s;
+}
+function answer(query){
+  for (const h of HANDOFF) if (h.k.some(k => query.includes(k))) return {text:h.r, handoff:true};
+  let best = null, bs = 0;
+  for (const kb of KB) { const s = hitScore(kb, query); if (s > bs) { bs = s; best = kb; } }
+  if (best && bs >= 2) return {text:best.a, handoff:false};
+  return {text:"抱歉，这个问题我暂时无法准确回答，正在为您转接人工客服，请稍候。", handoff:true};
+}
+const chat = document.getElementById("chat");
+function add(cls, text){ const d=document.createElement("div"); d.className="msg "+cls; const s=document.createElement("span"); s.textContent=text; d.appendChild(s); chat.appendChild(d); chat.scrollTop=chat.scrollHeight; }
+function send(){
+  const inp = document.getElementById("q"); const q = inp.value.trim(); if(!q) return;
+  inp.value=""; add("user", q);
+  const r = answer(q);
+  setTimeout(()=>{ if(r.handoff){ add("bot handoff", r.text); } else { add("bot", r.text); } }, 250);
+}
+["能装下电脑吗","是真皮吗","什么时候发货","支持七天无理由吗","我要退款怎么退"].forEach(t=>{
+  const b=document.createElement("button"); b.className="ghost"; b.style.cssText="margin:4px 6px 0 0;padding:6px 12px;font-size:13px";
+  b.textContent=t; b.onclick=()=>{ document.getElementById("q").value=t; send(); };
+  document.getElementById("quick").appendChild(b);
+});
+add("bot","你好，我是 AI 客服（演示模式）。可以问尺寸、材质、色差、发货、退换等问题～");
+</script>
+</body>
+</html>

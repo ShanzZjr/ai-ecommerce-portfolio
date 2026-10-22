@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目二 · 文案生成 + 违禁词检测</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目二 · 文案生成 + 违禁词检测</h1></header>
+  <p class="sub">输入商品信息 → 生成标题/五点/详情页 → 本地违禁词表自动检测标红（演示模式，规则模板；接入大模型可升级为语义生成）</p>
+  <div class="card">
+    <label>商品类目 / 品名</label><input type="text" id="cat" value="头层牛皮托特包">
+    <label>核心卖点（逗号分隔）</label><input type="text" id="points" value="大容量,百搭,耐磨">
+    <label>颜色</label><input type="text" id="colors" value="黑色,奶茶色,雾霾蓝">
+    <label>尺寸</label><input type="text" id="size" value="28×20×12cm">
+    <button onclick="gen()">生成文案并检测违禁词</button>
+  </div>
+  <div class="result" id="out"></div>
+  <p class="note">违禁词表覆盖广告法常见绝对化用语与电商高频违规词（最/第一/顶级/100%真皮/原单/专柜同款等），可按最新平台规则扩充。</p>
+</div>
+<script>
+const BANNED = [
+  {w:"最", r:"绝对化用语，广告法明令禁止"}, {w:"第一", r:"绝对化排名，需权威证明"},
+  {w:"顶级", r:"绝对化用语"}, {w:"极致", r:"绝对化用语"}, {w:"极佳", r:"绝对化用语"},
+  {w:"完美", r:"绝对化用语"}, {w:"绝对", r:"绝对化用语"}, {w:"国家级", r:"绝对化/误导"},
+  {w:"全网最低", r:"价格误导"}, {w:"史上最", r:"绝对化用语"}, {w:"销量第一", r:"排名绝对化"},
+  {w:"唯一", r:"绝对化用语"}, {w:"王牌", r:"夸大宣传"}, {w:"极品", r:"绝对化用语"},
+  {w:"100%真皮", r:"笼统真皮表述易误导"}, {w:"原单", r:"易涉侵权/虚假来源"},
+  {w:"尾货", r:"易涉虚假来源"}, {w:"专柜同款", r:"易涉侵权"}, {w:"正品代工", r:"易涉虚假宣传"},
+  {w:"永久", r:"绝对化用语"}, {w:"万能", r:"绝对化用语"}
+];
+function check(text){ return BANNED.filter(b => text.includes(b.w)); }
+function hl(text){
+  let out = "";
+  let i = 0;
+  const marks = [];
+  BANNED.forEach(b => { let idx = text.indexOf(b.w); while(idx !== -1){ marks.push([idx, idx+b.w.length]); idx = text.indexOf(b.w, idx+b.w.length); } });
+  marks.sort((a,b)=>a[0]-b[0]);
+  let last = 0;
+  for (const [s,e] of marks){ if (s < last) continue; out += esc(text.slice(last,s)) + '<span class="hit">' + esc(text.slice(s,e)) + '</span>'; last = e; }
+  out += esc(text.slice(last));
+  return out;
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>"); }
+function gen(){
+  const cat = document.getElementById("cat").value.trim() || "托特包";
+  const pts = document.getElementById("points").value.split(/[,，、]/).map(s=>s.trim()).filter(Boolean);
+  const colors = document.getElementById("colors").value.trim() || "黑色";
+  const size = document.getElementById("size").value.trim() || "28×20×12cm";
+  const p1 = pts[0]||"大容量", p2 = pts[1]||"百搭", p3 = pts[2]||"质感好";
+  const title = cat + " " + p1 + p2 + " 通勤单肩包 " + colors.split(/[，,]/)[0] + " 现货";
+  const five = [
+    "【" + p1 + "】主体尺寸 " + size + "，13寸电脑、水杯、化妆包轻松收纳",
+    "【" + p2 + "】" + colors + " 三色可选，通勤/约会/短途出游都合适",
+    "【材质扎实】" + cat + "，五金为合金电镀，不易褪色",
+    "【细节贴心】2个主仓+拉链暗袋+手机位，内衬绒布护物",
+    "【售后安心】7天无理由退换，签收48小时内问题包处理"
+  ].join("\n");
+  const detail = "为什么选这款" + cat + "？\n一眼爱上：" + p1 + "，" + size + " 主仓空间，日常通勤一包搞定。\n" +
+    p2 + "：" + colors + "，怎么搭都顺眼。\n" + p3 + "：做工细致，走线整齐，细节经得起看。\n" +
+    "售后：7天无理由，运费险默认赠送，下单无忧。";
+  const blocks = [["标题", title], ["五点描述", five], ["详情页文案", detail]];
+  let html = "";
+  const allText = title + five + detail;
+  const hits = check(allText);
+  for (const [name, text] of blocks){
+    const h = check(text);
+    html += '<div class="card"><strong>' + name + '</strong>' +
+      (h.length ? ' <span class="badge b-bad">检出 ' + h.length + ' 处违禁词</span>' : ' <span class="badge b-ok">未检出违禁词</span>') +
+      '<div style="margin-top:8px;font-size:14px;line-height:1.8;white-space:normal">' + hl(text) + '</div></div>';
+  }
+  if (hits.length){
+    html += '<div class="card handoff"><strong>违禁词报告</strong><table><tr><th>词</th><th>风险说明</th></tr>' +
+      hits.map(h => '<tr><td><span class="hit">' + esc(h.w) + '</span></td><td>' + esc(h.r) + '</td></tr>').join("") + '</table></div>';
+  } else {
+    html += '<div class="card"><span class="badge b-ok">✓ 全文通过违禁词检测</span></div>';
+  }
+  document.getElementById("out").innerHTML = html;
+}
+</script>
+</body>
+</html>
