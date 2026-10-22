@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>电商 AI 作品集 · 在线 Demo</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+.card a { text-decoration:none; color:inherit; display:block; }
+.card h2 { font-size:16px; margin:0 0 6px; }
+.tag { font-size:12px; color:var(--brand); background:#e8f0fe; border-radius:99px; padding:2px 10px; display:inline-block; margin-bottom:8px; }
+.card p { font-size:13px; color:var(--sub); margin:0; line-height:1.6; }
+.hero { font-size:14px; color:var(--sub); line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>电商 AI 作品集 · 在线 Demo</h1>
+  <p class="hero">6 个可交互的纯前端演示（零安装、无需 API key）。业务逻辑移植自同仓库的 6 个 Python 原型项目；
+  数据为公开合成的示例数据。完整源码与 PRD 见
+  <a href="https://github.com/ShanzZjr/ai-ecommerce-portfolio" style="color:var(--brand)">GitHub 仓库</a>。</p>
+  <div class="grid">
+    <div class="card"><a href="p1.html"><span class="tag">项目一 · Agent 落地</span><h2>电商智能客服</h2><p>知识库检索 + 转人工规则。试试问"能装下电脑吗"和"我要退款"。</p></a></div>
+    <div class="card"><a href="p2.html"><span class="tag">项目二 · 生成+合规</span><h2>文案生成 + 违禁词检测</h2><p>输入品类卖点生成标题/五点/详情页，极限词自动标红。</p></a></div>
+    <div class="card"><a href="p3.html"><span class="tag">项目三 · 数据归因</span><h2>评价洞察</h2><p>示例评价一键分析：情感分类 + 差评归因 + 改进清单。</p></a></div>
+    <div class="card"><a href="p4.html"><span class="tag">项目四 · 经营数据</span><h2>经营数据日报</h2><p>14 天示例数据：环比、异常检测（骤降/退款率超警戒）+ 日报文本。</p></a></div>
+    <div class="card"><a href="p5.html"><span class="tag">项目五 · 多平台适配</span><h2>标题搬家 + SEO</h2><p>一键生成淘宝/拼多多/抖音/小红书四平台标题，字数合规+违禁词检测。</p></a></div>
+    <div class="card"><a href="p6.html"><span class="tag">项目六 · 内容生成</span><h2>短视频/直播脚本</h2><p>四段式分镜脚本 ×2（A/B）+ 口播稿 + 直播三段话术。</p></a></div>
+  </div>
+  <p class="note">声明：均为个人练手项目的原型演示，未接入真实店铺/订单系统；数据为公开示例。</p>
+</div>
+</body>
+</html>

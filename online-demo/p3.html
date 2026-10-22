@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目三 · 评价洞察</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目三 · 店铺/竞品评价洞察</h1></header>
+  <p class="sub">情感分类 + 差评归因（质量/物流/尺寸/色差/服务）+ 改进清单。设计原则：归因用确定性规则（可解释、可审计），开放式总结才交给大模型。</p>
+  <div class="card">
+    <label>评价文本（每行一条；留空则载入 24 条示例评价）</label>
+    <textarea id="inp" placeholder="留空点击下方按钮即载入示例数据"></textarea>
+    <button onclick="run('sample')">载入示例并分析</button>
+    <button class="ghost" onclick="run('input')">分析我输入的评价</button>
+  </div>
+  <div class="result" id="out"></div>
+</div>
+<script>
+const SAMPLE = ["包包收到了，皮料很软，做工细致，背着特别百搭，闺蜜都说好看","物流太慢了，等了一周才到，不过包本身质量还行","颜色和图片不一样，偏暗，有点失望","肩带太短了，个子高背着不舒服，尺寸也比想象中小","五金有点掉色，用了一周就花了，质量一般","客服态度很好，退换流程也顺利，点赞","收到发现边角开线了，瑕疵明显，申请了退款","容量很大能装电脑，通勤很方便，性价比高","发货很快第二天就到了，包装也用心","实物比图片小很多，装不下我的雨伞，差评","皮味道有点大，通风几天好了，整体还行","拉链不太顺滑，有点卡，其他都好","颜值在线，奶茶色很温柔，推荐购买","物流把包压变形了，盒子都瘪了，心疼","客服半天不回消息，问尺寸没人理，体验差","价格实惠，质量对得起价格，学生党友好","色差有点大，但质量没话说，能接受","肩带调节范围小，胖一点的姐妹注意，建议标注","收到就降价了，感觉买亏了，不过包还行","内衬味道重，其他没问题","做工精致，走线整齐，送人很有面子","说好的礼盒没给，客服说备注漏了，无语","容量一般，装不下13寸电脑，介意慎拍","整体满意，就是发货慢了点，希望能改进"];
+const CATS = {
+  "质量":["掉皮","开裂","破损","开线","脱胶","五金","掉色","瑕疵","做工","走线","拉链","皮料","味道","气味","变形","压"],
+  "物流":["物流","快递","发货慢","等了","压变形","盒子瘪","收到"],
+  "尺寸":["太小","太大","尺寸","装不下","容量","比想象","肩带","自重","小很多"],
+  "色差":["色差","颜色","图片","实物","偏暗","偏"],
+  "服务":["客服","回复","态度","售后","退款","退换","不回","备注漏","体验"]
+};
+const POS = ["喜欢","好看","满意","质量好","推荐","值","不错","百搭","细致","精致","方便","实惠","友好","在线","用心","面子","整齐","顺利"];
+const NEG = ["差","坏","失望","后悔","退","问题","不行","丑","慢","瘪","无语","亏","瑕疵","开线","掉色","压变形","不回","介意","心疼"];
+const IMPROVE = {
+  "质量":["加强出厂质检与皮料说明","提供质保/保修说明","拉链、五金等高风险工艺升级供应商"],
+  "物流":["升级合作快递并承诺发货时效","加固包装防压变形","偏远地区时效提前提醒"],
+  "尺寸":["详情页增加尺寸装物示意与自重标注","写清肩带可调范围","用视频展示真实大小"],
+  "色差":["自然光实拍并提示屏幕色差","提供多光源色卡对比"],
+  "服务":["售前话术标准化与响应 SLA","退换流程前置到详情页","客服不回时自动兜底回复"]
+};
+function sentiment(t){
+  let s = 0;
+  POS.forEach(w => { if (t.includes(w)) s++; });
+  NEG.forEach(w => { if (t.includes(w)) s--; });
+  return s > 0 ? "正面" : (s < 0 ? "负面" : "中性");
+}
+function attribute(t){
+  const hits = [];
+  for (const [cat, kws] of Object.entries(CATS)) if (kws.some(k => t.includes(k))) hits.push(cat);
+  return hits.length ? hits : ["其他"];
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function run(mode){
+  let reviews;
+  if (mode === "sample") reviews = SAMPLE.slice();
+  else {
+    reviews = document.getElementById("inp").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if (!reviews.length){ alert("请输入至少一条评价，或点\"载入示例并分析\""); return; }
+  }
+  const sent = {"正面":0,"中性":0,"负面":0};
+  const attr = {};
+  const negatives = [];
+  for (const t of reviews){
+    const s = sentiment(t); sent[s]++;
+    const cats = attribute(t);
+    cats.forEach(c => attr[c] = (attr[c]||0)+1);
+    if (s === "负面") negatives.push({t, cats});
+  }
+  const attrSorted = Object.entries(attr).sort((a,b)=>b[1]-a[1]);
+  let html = '<div class="card"><strong>总览</strong>　共 ' + reviews.length + ' 条　' +
+    '<span class="badge b-ok">正面 ' + sent["正面"] + '</span><span class="badge b-info">中性 ' + sent["中性"] + '</span><span class="badge b-bad">负面 ' + sent["负面"] + '</span></div>';
+  html += '<div class="card"><strong>差评归因</strong><table><tr><th>归因</th><th>提及数</th><th>占比</th></tr>' +
+    attrSorted.map(([c,n]) => '<tr><td>' + c + '</td><td>' + n + '</td><td>' + Math.round(n/reviews.length*100) + '%</td></tr>').join("") + '</table></div>';
+  html += '<div class="card"><strong>改进清单（按归因优先级）</strong><ol style="margin:8px 0 0;padding-left:20px;font-size:14px;line-height:1.9">' +
+    attrSorted.filter(([c]) => IMPROVE[c]).map(([c,n]) =>
+      '<li><strong>' + c + '</strong>（' + n + ' 条）：<ul style="margin:4px 0 8px">' + IMPROVE[c].map(t=>'<li>'+t+'</li>').join("") + '</ul></li>').join("") + '</ol></div>';
+  html += '<div class="card"><strong>负面评价明细（' + negatives.length + ' 条）</strong><table><tr><th>评价</th><th>归因</th></tr>' +
+    negatives.map(n => '<tr><td style="max-width:420px">' + esc(n.t) + '</td><td>' + n.cats.join("、") + '</td></tr>').join("") + '</table></div>';
+  html += '<div class="card"><span class="badge b-info">接入大模型可追加：开放式差评总结与回复话术生成（归因保持规则，保证可解释）</span></div>';
+  document.getElementById("out").innerHTML = html;
+}
+window.onload = () => run("sample");
+</script>
+</body>
+</html>

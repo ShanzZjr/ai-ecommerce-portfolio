@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目五 · 多平台标题搬家 + SEO</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目五 · 多平台标题搬家 + SEO</h1></header>
+  <p class="sub">平台差异沉淀为配置表（字数上限 + 风格模板），生成后强制过本地违禁词检测。演示模式为规则模板；接入大模型可升级为语义改写。</p>
+  <div class="card">
+    <label>原标题（淘宝/拼多多搜索用长标题）</label>
+    <input type="text" id="title" value="头层牛皮托特包 大容量通勤">
+    <label>类目词</label>
+    <input type="text" id="cat" value="托特包">
+    <label>核心卖点（逗号分隔）</label>
+    <input type="text" id="points" value="大容量,百搭,耐磨">
+    <button onclick="adapt()">生成四平台标题</button>
+  </div>
+  <div class="result" id="out"></div>
+</div>
+<script>
+const BANNED = ["最","第一","顶级","绝对","全网最低","100%","国家级","销量第一","独家","首选","王牌","万能","假一赔十"];
+const PLATFORMS = [
+  {name:"淘宝", max:30, style:"关键词规整堆叠：核心词+属性词+长尾词，利于搜索"},
+  {name:"拼多多", max:60, style:"高密度堆词+营销词（工厂直发/特价/包邮）"},
+  {name:"抖音", max:55, style:"口语化+场景痛点+情绪钩子，适配短视频口播"},
+  {name:"小红书", max:20, style:"种草分享风，弱营销、强体验词"}
+];
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function checkBanned(t){ return BANNED.filter(w => t.includes(w)); }
+function adapt(){
+  const title = document.getElementById("title").value.trim();
+  const cat = document.getElementById("cat").value.trim() || "托特包";
+  const pts = document.getElementById("points").value.split(/[,，、]/).map(s=>s.trim()).filter(Boolean);
+  const core = title || cat;
+  const catInCore = cat && core.includes(cat);
+  const pt2 = pts.slice(0,2).join(" ") || "大容量 百搭";
+  const drafts = {
+    "淘宝":   catInCore ? core + " " + pt2 + " 官方正品 包邮" : cat + " " + pt2 + " " + core + " 官方正品 包邮",
+    "拼多多": catInCore ? core + " " + pt2 + " 工厂直发 特价包邮" : core + " " + pt2 + " 工厂直发 特价包邮 " + cat,
+    "抖音":   "别再乱买" + cat + "了！" + pt2 + "真的绝，闭眼入",
+    "小红书": "挖到宝了！" + cat + "天花板｜" + pt2
+  };
+  let html = "";
+  for (const p of PLATFORMS){
+    const t = drafts[p.name].slice(0, p.max);
+    const banned = checkBanned(t);
+    const over = t.length > p.max;
+    html += '<div class="card"><strong>' + p.name + '</strong>' +
+      ' <span class="badge ' + (banned.length ? "b-bad" : "b-ok") + '">字数 ' + t.length + '/' + p.max + '</span>' +
+      (banned.length ? ' <span class="badge b-bad">违禁词：' + banned.join("、") + '</span>' : ' <span class="badge b-ok">违禁词通过</span>') +
+      '<div style="margin:8px 0 4px;font-size:15px;font-weight:600">' + esc(t) + '</div>' +
+      '<div class="kv">风格：' + p.style + '</div></div>';
+  }
+  document.getElementById("out").innerHTML = html;
+}
+</script>
+</body>
+</html>

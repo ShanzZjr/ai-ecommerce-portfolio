@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目六 · 短视频/直播脚本生成</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目六 · 短视频/直播脚本生成</h1></header>
+  <p class="sub">结构方法论模板化：短视频「钩子-共鸣-卖点-行动」四段式 ×2 版本（天然 A/B）+ 口播稿 + 直播「开场-过款-逼单」三段。结构确定（规则），台词可接大模型改写。</p>
+  <div class="card">
+    <label>商品</label><input type="text" id="product" value="头层牛皮托特包">
+    <label>核心卖点（逗号分隔）</label><input type="text" id="points" value="大容量,百搭,耐磨">
+    <label>直播价（元）</label><input type="text" id="price" value="129">
+    <label>目标人群</label><input type="text" id="aud" value="20-35 岁通勤女生">
+    <button onclick="gen()">批量生成脚本</button>
+  </div>
+  <div class="result" id="out"></div>
+</div>
+<script>
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function gen(){
+  const pts = document.getElementById("points").value.split(/[,，、]/).map(s=>s.trim()).filter(Boolean);
+  const [p1, p2, p3] = [...pts, "质感好", "性价比高"].slice(0,3);
+  const aud = document.getElementById("aud").value.trim() || "20-35 岁通勤女生";
+  const prd = document.getElementById("product").value.trim() || "托特包";
+  const price = document.getElementById("price").value.trim() || "129";
+  const videos = [
+    {name:"版本 A · 痛点开场", beats:[
+      {time:"0-3s", type:"钩子", line:"还在为" + p1 + "不够用换包发愁？", shot:"特写：塞满的旧包，拉链卡住"},
+      {time:"3-10s", type:"共鸣", line:"通勤、逛街、短途出游，一个包全搞定", shot:"三场景快切：地铁/商场/车站"},
+      {time:"10-25s", type:"卖点展示", line:p1 + "｜" + p2 + "｜" + p3 + "，" + aud + "都说实用", shot:"演示装下 13 寸电脑+水杯+化妆包"},
+      {time:"25-30s", type:"行动号召", line:"今天直播间只要 " + price + "，点击下方小黄车", shot:"价格弹出 + 箭头指引"}]},
+    {name:"版本 B · 悬念开场", beats:[
+      {time:"0-3s", type:"钩子", line:"为什么这款" + prd + "回头率这么高？", shot:"街拍背影，路人回头"},
+      {time:"3-10s", type:"悬念铺垫", line:"关键是" + p1 + "还" + p2, shot:"慢镜头开包展示内仓"},
+      {time:"10-25s", type:"卖点展示", line:p3 + "不心疼，" + price + " 元拿下", shot:"对比同款大牌价格"},
+      {time:"25-30s", type:"行动号召", line:"点关注不迷路，评论区扣 1 发链接", shot:"博主指向评论区"}]}
+  ];
+  const voiceover = aud + "们注意了！如果你也需要一只能装又好看的" + prd + "，今天这款一定要看完。第一，" + p1 +
+    "，13 寸电脑、水杯、化妆包一起塞；第二，" + p2 + "，通勤约会都能背；第三，" + p3 +
+    "，日常刮蹭不心疼。现在下单只要 " + price + " 元，点击小黄车，库存不多先到先得。";
+  const live = {
+    "开场欢迎":"欢迎新进直播间的宝子们！今天专场是" + prd + "，" + aud + "闭眼入，先扣个 1 让我看看人数。",
+    "过款介绍":"来，看这款：" + p1 + "、" + p2 + "、" + p3 + "。我直接给你们演示——电脑、水杯、伞全部装进去还有空间。官方价 299，今天直播间 " + price + "。",
+    "逼单节奏":"这个价格仅限今天直播间，库存最后 80 单，拍下 48 小时内发货，7 天无理由，不合适退回来运费险出。"
+  };
+  let html = videos.map(v =>
+    '<div class="card"><strong>' + v.name + '</strong><table><tr><th>时间</th><th>段落</th><th>台词</th><th>画面</th></tr>' +
+    v.beats.map(b => '<tr><td>' + b.time + '</td><td>' + b.type + '</td><td style="max-width:300px">' + esc(b.line) + '</td><td>' + esc(b.shot) + '</td></tr>').join("") +
+    '</table></div>').join("");
+  html += '<div class="card"><strong>口播稿（照读版）</strong><pre class="daily">' + esc(voiceover) + '</pre></div>';
+  html += '<div class="card"><strong>直播话术（三段式）</strong>' + Object.entries(live).map(([k,v]) =>
+    '<div style="margin:8px 0"><span class="badge b-info">' + k + '</span><div style="font-size:14px;line-height:1.8;margin-top:4px">' + esc(v) + '</div></div>').join("") + '</div>';
+  html += '<div class="card"><span class="badge b-info">接入大模型可按品类风格改写台词，结构保持不变（A/B 两版本便于投放测试）</span></div>';
+  document.getElementById("out").innerHTML = html;
+}
+</script>
+</body>
+</html>

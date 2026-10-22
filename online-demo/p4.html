@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目四 · 经营数据日报生成器</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="back" href="index.html">← 返回导航</a><h1>项目四 · 经营数据日报生成器</h1></header>
+  <p class="sub">兼容生意参谋导出格式。阈值规则检测异常（可解释、可审计）：访客 ±30%、退款率 8% 警戒、转化降幅 25%。</p>
+  <div class="card">
+    <button onclick="run('sample')">载入 14 天示例数据并生成日报</button>
+    <p class="note" style="margin-top:6px">示例数据（公开合成）埋有故事线：10-08 流量骤降 43.9%、10-12 大促激增 153.7%、10-11 退款率 8.6% 超警戒。</p>
+  </div>
+  <div class="result" id="out"></div>
+</div>
+<script>
+const SAMPLE = [
+["2026-10-01",1245,4210,39,6630,260],["2026-10-02",1180,3980,35,5950,180],
+["2026-10-03",1290,4360,41,7380,310],["2026-10-04",1210,4050,37,6290,220],
+["2026-10-05",1330,4520,44,7920,350],["2026-10-06",1265,4280,40,7200,240],
+["2026-10-07",1310,4440,42,7560,290],["2026-10-08",735,2480,21,3780,150],
+["2026-10-09",1020,3440,30,5400,200],["2026-10-10",1150,3890,35,6300,230],
+["2026-10-11",1230,4160,38,6840,590],["2026-10-12",3120,10600,102,18360,420],
+["2026-10-13",1980,6700,64,11520,380],["2026-10-14",1650,5580,53,9540,330]];
+const TH = {traffic:0.30, refund:0.08, crDrop:0.25};
+const pct = (c,p) => p ? (c-p)/p : 0;
+function analyze(rows){
+  const data = rows.map(r => {
+    const [date,uv,pv,buyers,gmv,refund] = r;
+    return {date, uv, gmv, buyers, cr: buyers/uv, aov: gmv/buyers, rr: refund/gmv};
+  });
+  if (data.length < 2) return {alerts:[], text:"数据不足两天"};
+  const last = data[data.length-1], prev = data[data.length-2];
+  const chg = {uv: pct(last.uv, prev.uv)*100, gmv: pct(last.gmv, prev.gmv)*100, cr: pct(last.cr, prev.cr)*100};
+  const alerts = [];
+  for (let i=1; i<data.length; i++){
+    const d = data[i], p = data[i-1];
+    const u = pct(d.uv, p.uv);
+    if (Math.abs(u) >= TH.traffic){
+      alerts.push(u < 0
+        ? {date:d.date, level:"warn", metric:"访客数", detail:"骤降 " + (Math.abs(u)*100).toFixed(1) + "%（" + p.uv + "→" + d.uv + "）", tip:"优先排查：搜索排名是否下滑、投放计划是否暂停、竞品大促是否分流"}
+        : {date:d.date, level:"info", metric:"访客数", detail:"激增 " + (u*100).toFixed(1) + "%（" + p.uv + "→" + d.uv + "）", tip:"确认是否活动/短视频带动，复盘该渠道 ROI，评估能否常态化复制"});
+    }
+    if (d.gmv && d.rr >= TH.refund){
+      alerts.push({date:d.date, level:"warn", metric:"退款率", detail:(d.rr*100).toFixed(1) + "% 超过 8% 警戒线", tip:"抽查当日退款原因 TOP3（质量/尺码/色差），同步调整详情页说明与客服话术"});
+    }
+  }
+  if (pct(last.cr, prev.cr) <= -TH.crDrop){
+    alerts.push({date:last.date, level:"warn", metric:"支付转化率", detail:"环比下降 " + Math.abs(chg.cr).toFixed(1) + "%", tip:"检查价格竞争力、新增差评、详情页是否被竞品比价"});
+  }
+  const last7 = data.slice(-7);
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  const summary = {date:last.date, gmv:Math.round(last.gmv), uv:last.uv, buyers:last.buyers,
+    cr:(last.cr*100).toFixed(2), aov:Math.round(last.aov), rr:(last.rr*100).toFixed(1),
+    gmv7:Math.round(sum(last7.map(d=>d.gmv))),
+    cr7:(sum(last7.map(d=>d.buyers))/Math.max(sum(last7.map(d=>d.uv)),1)*100).toFixed(2)};
+  let text = "【" + summary.date + " 经营日报】\n";
+  text += "昨日 GMV " + summary.gmv + " 元（环比 " + (chg.gmv>=0?"+":"") + chg.gmv.toFixed(1) + "%），访客 " + summary.uv + "（环比 " + (chg.uv>=0?"+":"") + chg.uv.toFixed(1) + "%），转化率 " + summary.cr + "%，客单价 " + summary.aov + " 元，退款率 " + summary.rr + "%。\n";
+  text += "近 7 天 GMV 合计 " + summary.gmv7 + " 元，平均转化率 " + summary.cr7 + "%。\n";
+  if (alerts.length){ text += "异常与建议：\n"; alerts.forEach(a => text += "- " + a.date + " " + a.metric + a.detail + " → " + a.tip + "\n"); }
+  else text += "昨日无异常波动，维持现有投放与内容节奏即可。";
+  return {summary, chg, alerts, text};
+}
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function run(mode){
+  const {summary, chg, alerts, text} = analyze(SAMPLE);
+  let html = '<div class="card"><strong>' + summary.date + ' 核心指标</strong><table><tr><th>GMV</th><th>访客</th><th>转化率</th><th>客单价</th><th>退款率</th></tr>' +
+    '<tr><td>' + summary.gmv + ' 元 (' + (chg.gmv>=0?'+':'') + chg.gmv.toFixed(1) + '%)</td><td>' + summary.uv + ' (' + (chg.uv>=0?'+':'') + chg.uv.toFixed(1) + '%)</td><td>' + summary.cr + '%</td><td>' + summary.aov + ' 元</td><td>' + summary.rr + '%</td></tr></table></div>';
+  html += '<div class="card"><strong>异常检测（' + alerts.length + ' 项）</strong>' + alerts.map(a =>
+    '<div style="margin:8px 0;font-size:14px"><span class="badge ' + (a.level==="warn"?"b-warn":"b-info") + '">' + a.date + ' · ' + a.metric + '</span> ' +
+    esc(a.detail) + '<br><span class="kv">建议：' + esc(a.tip) + '</span></div>').join("") + '</div>';
+  html += '<div class="card"><strong>日报文本（可直接复制）</strong><pre class="daily">' + esc(text) + '</pre></div>';
+  document.getElementById("out").innerHTML = html;
+}
+</script>
+</body>
+</html>
